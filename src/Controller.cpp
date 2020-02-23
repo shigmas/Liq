@@ -3,6 +3,7 @@
 #include <QDir>
 #include <QDebug>
 #include <QQmlContext>
+#include <QTimer>
 
 #include <algorithm>
 
@@ -42,11 +43,8 @@ Controller::Controller(QObject *parent) :
 Controller::~Controller()
 {
     if (_lidarDriver != NULL) {
-        qDebug() << "Disconnecting from LiDAR";
-        _lidarDriver->stop();
-        _lidarDriver->stopMotor();
-
-        RPlidarDriver::DisposeDriver(_lidarDriver);
+        _Disconnect();
+        delete _scanTimer;
     }
 }
 
@@ -67,6 +65,11 @@ Controller::SetUsbDevice(int index, bool isToggled)
 
     _lidarDriver = RPlidarDriver::CreateDriver(DRIVER_TYPE_SERIALPORT);
     _Connect(_usbDevices[index], 115200);
+
+    // set timer to scan
+    _scanTimer = new QTimer(this);
+    connect(_scanTimer, &QTimer::timeout, this, &Self::_ReadDevice);
+    _scanTimer->start(1000);
 }
 
 void
@@ -117,9 +120,11 @@ Controller::_Connect(const QString& usbPath, int baudrate)
     if (op_result & RESULT_FAIL_BIT) {
         qDebug() << "Unable to start scan";
     }
+}
 
-    _ReadDevice();
-
+void
+Controller::_Disconnect()
+{
     qDebug() << "disconnecting";
     _lidarDriver->stop();
     _lidarDriver->stopMotor();

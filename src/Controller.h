@@ -8,7 +8,7 @@
 #include <QPointF>
 
 class QQmlContext;
-
+class QTimer;
 // Let's put this in another class
 // And, uh... overdoing it on the namespaces a bit?
 namespace rp {
@@ -46,6 +46,7 @@ Q_SIGNALS:
     void _PopulateUSBDeviceList();
 
     void _Connect(const QString& usbPath, int baudrate);
+    void _Disconnect();
     void _ReadDevice();
     QPointF _MakePoint(float angle, float dist);
     static const QString ControllerPropertyName;
@@ -60,7 +61,8 @@ private:
 
     QVector<QPointF> _points;
     QQmlContext *_context;
-
+    QTimer *_scanTimer;
+    
     rp::standalone::rplidar::RPlidarDriver *_lidarDriver;
 };
 
