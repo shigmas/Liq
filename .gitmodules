@@ -1,0 +1,4 @@
+[submodule "rplidar_sdk"]
+	path = rplidar_sdk
+	url = https://github.com/Slamtec/rplidar_sdk
+	branch = a9ad2ce

@@ -1,5 +1,5 @@
 <RCC>
-    <qresource prefix="/">
-        <file>qml/liq.qml</file>
+    <qresource prefix="/qt/qml">
+        <file>liq.qml</file>
     </qresource>
 </RCC>
