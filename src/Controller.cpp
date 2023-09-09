@@ -3,6 +3,9 @@
 #include <QDir>
 #include <QDebug>
 #include <QQmlContext>
+#include <QSerialPort>
+#include <QSerialPortInfo>
+
 #include <QTimer>
 
 #include <algorithm>
@@ -11,10 +14,16 @@
 
 #include "rplidar.h" //RPLIDAR standard sdk, all-in-one header
 
+//#include "HeatSource.h"
+
 Controller * Controller::_instance = NULL;
 
 const QString Controller::ControllerPropertyName = "controller";
 const QString Controller::USBDevicesPropertyName = "usbDevices";
+
+const quint16 Controller::CP2104VendorID = 4292;
+const QString Controller::AMG8833Serial = "01BE21A0";
+const QString Controller::RPLidarSerial = "0001";
 
 using namespace rp::standalone::rplidar;
 
@@ -63,43 +72,53 @@ Controller::SetUsbDevice(int index, bool isToggled)
     qDebug() << index << " was set to " << isToggled;
     _selectedDevice = index;
 
-    _lidarDriver = RPlidarDriver::CreateDriver(DRIVER_TYPE_SERIALPORT);
-    _Connect(_usbDevices[index], 115200);
+    // _lidarDriver = RPlidarDriver::CreateDriver(DRIVER_TYPE_SERIALPORT);
+    // _Connect(_usbDevices[index], 115200);
 
-    // set timer to scan
-    _scanTimer = new QTimer(this);
-    connect(_scanTimer, &QTimer::timeout, this, &Self::_ReadDevice);
-    _scanTimer->start(1000);
+    // // set timer to scan
+    // _scanTimer = new QTimer(this);
+    // connect(_scanTimer, &QTimer::timeout, this, &Self::_ReadDevice);
+    // _scanTimer->start(1000);
 }
 
 void
 Controller::_PopulateUSBDeviceList()
 {
-    QDir devDir("/dev");
-    QStringList filters;
-    filters << "*USB*";
-    //filters << "std*";
+    QList<QSerialPortInfo> availablePorts = QSerialPortInfo::availablePorts();
 
-    QFileInfoList infos = devDir.entryInfoList(filters, QDir::System);
-   _usbDevices.clear();
-    std::transform(infos.cbegin(),infos.cend(), std::back_inserter(_usbDevices),
-                   [] (const QFileInfo& info) {
-                       return info.absoluteFilePath();
-                   });
+    qDebug() << "Looking for serial ports";
+    _usbDevices.clear();
+    std::for_each(availablePorts.cbegin(), availablePorts.cend(),
+             [this](const QSerialPortInfo &p) {
+                 if (p.serialNumber() == Controller::RPLidarSerial) {
+                     _usbDevices[p.serialNumber()] = p.portName() + ":" + p.systemLocation();
+                     _lidarDriver = RPlidarDriver::CreateDriver(DRIVER_TYPE_SERIALPORT);
+                     _ConnectToLidar(p.systemLocation());
+                 }
+                 if (p.serialNumber() == Controller::AMG8833Serial) {
+                     QSerialPort *serialPort = new QSerialPort(p, this);
+                     serialPort->setBaudRate(115200);
+                     serialPort->open(QIODevice::ReadOnly);
+                     //_heatSource = new HeatSource(serialPort, this);
+                 }
+             });
     _context->setContextProperty(USBDevicesPropertyName, QVariant(_usbDevices));
+    _scanTimer = new QTimer(this);
+    connect(_scanTimer, &QTimer::timeout, this, &Self::_ReadDevice);
+    _scanTimer->start(100);
 }
 
 void
-Controller::_Connect(const QString& usbPath, int baudrate)
+Controller::_ConnectToLidar(const QString& usbPath)
 {
     //rplidar_response_device_health_t healthinfo;
     rplidar_response_device_info_t devinfo;
 
     // try to connect
     u_result op_result;
-    op_result = _lidarDriver->connect(usbPath.toUtf8().constData(), baudrate);
+    op_result = _lidarDriver->connect(usbPath.toUtf8().constData(), 115200);
     if (op_result & RESULT_FAIL_BIT) {
-        qDebug() << "Failed toonnect to " << usbPath << ": " << op_result;
+        qDebug() << "Failed to connect to " << usbPath << ": " << op_result;
         return;
     }
     // retrieving the device info
@@ -111,7 +130,7 @@ Controller::_Connect(const QString& usbPath, int baudrate)
     }
     QString serialNum;
     for (int i = 0 ; i < 16 ; ++i) {
-        serialNum.append(devinfo.serialnum[i]);
+        serialNum.append(QChar(devinfo.serialnum[i]));
     }
     qDebug() << "Connected to " << serialNum;
 
@@ -163,7 +182,10 @@ Controller::_ReadDevice()
 
     qDebug() << "waiting for data...";
 
-    // fetech extactly one 0-360 degrees' scan
+    if (!_lidarDriver) {
+        return;
+    }        
+    // fetch exactly one 0-360 degrees' scan
     u_result res = _lidarDriver->grabScanDataHq(nodes, count);
     if (res & RESULT_FAIL_BIT) {
         qDebug() << "Error in scanning";

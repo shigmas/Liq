@@ -3,14 +3,13 @@
 
 #include <QDebug>
 #include <QQmlEngine>
-#include <QQuickStyle>
 
 #include "Controller.h"
 #include "PointsItem.h"
 
 int main(int argc, char *argv[])
 {
-    QCoreApplication::setAttribute(Qt::AA_EnableHighDpiScaling);
+    //    QCoreApplication::setAttribute(Qt::AA_EnableHighDpiScaling);
 
     QGuiApplication app(argc, argv);
 
@@ -19,7 +18,7 @@ int main(int argc, char *argv[])
     
     Controller* controller = Controller::GetInstance();
     controller->SetContext(engine.rootContext());
-    engine.load(QUrl(QStringLiteral("qrc:/qml/liq.qml")));
+    engine.load(QUrl(QStringLiteral("qrc:/Liq/qml/liq.qml")));
 
     if (engine.rootObjects().isEmpty())
         return -1;

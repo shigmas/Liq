@@ -1,6 +1,7 @@
 #ifndef CONTROLLER_H
 #define CONTROLLER_H
 
+#include <QMap>
 #include <QObject>
 #include <QString>
 #include <QStringListModel>
@@ -19,6 +20,8 @@ namespace rp {
     }
 }
 
+class HeatSource;
+
 class Controller : public QObject
 {
     Q_OBJECT
@@ -35,28 +38,34 @@ public:
 
     void SetContext(QQmlContext *context);
 
-    Q_INVOKABLE void SetUsbDevice(int index, bool isToggled);
+    //Q_INVOKABLE void SetUsbDevice(int index, bool isToggled);
 
     QVector<QPointF> GetPoints() const;
 
 Q_SIGNALS:
     void PointsUpdated();
 
-    protected:
+protected:
+    void SetUsbDevice(int index, bool isToggled);
     void _PopulateUSBDeviceList();
 
-    void _Connect(const QString& usbPath, int baudrate);
+    void _ConnectToLidar(const QString& usbPath);
     void _Disconnect();
     void _ReadDevice();
     QPointF _MakePoint(float angle, float dist);
     static const QString ControllerPropertyName;
     static const QString USBDevicesPropertyName;
 
+    static const quint16 CP2104VendorID;
+    static const QString AMG8833Serial;
+    static const QString RPLidarSerial;
+
 private:
     static Controller *_instance;
 
 private:
-    QStringList _usbDevices;
+    // Holds the QSerialPort
+    QVariantMap _usbDevices;
     int _selectedDevice;
 
     QVector<QPointF> _points;
@@ -64,6 +73,7 @@ private:
     QTimer *_scanTimer;
     
     rp::standalone::rplidar::RPlidarDriver *_lidarDriver;
+    HeatSource *_heatSource;
 };
 
 #endif // CONTROLLER_H
