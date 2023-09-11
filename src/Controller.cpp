@@ -72,40 +72,44 @@ Controller::SetUsbDevice(int index, bool isToggled)
     qDebug() << index << " was set to " << isToggled;
     _selectedDevice = index;
 
-    // _lidarDriver = RPlidarDriver::CreateDriver(DRIVER_TYPE_SERIALPORT);
-    // _Connect(_usbDevices[index], 115200);
+    // Get the serial device
+    const QSerialPortInfo p = _serialPorts[index];
+    if (p.serialNumber() == Controller::RPLidarSerial) {
+        _lidarDriver = RPlidarDriver::CreateDriver(DRIVER_TYPE_SERIALPORT);
+        _ConnectToLidar(p.systemLocation());
+    } else if (p.serialNumber() == Controller::AMG8833Serial) {
+        QSerialPort *serialPort = new QSerialPort(p, this);
+        serialPort->setBaudRate(115200);
+        serialPort->open(QIODevice::ReadOnly);
+        //_heatSource = new HeatSource(serialPort, this);
+    } else {
+        qDebug() << "unapplicable serial port";
+    }
 
-    // // set timer to scan
-    // _scanTimer = new QTimer(this);
-    // connect(_scanTimer, &QTimer::timeout, this, &Self::_ReadDevice);
-    // _scanTimer->start(1000);
+    // set timer to scan
+    _scanTimer = new QTimer(this);
+    connect(_scanTimer, &QTimer::timeout, this, &Self::_ReadDevice);
+    _scanTimer->start(1000);
 }
 
 void
 Controller::_PopulateUSBDeviceList()
 {
-    QList<QSerialPortInfo> availablePorts = QSerialPortInfo::availablePorts();
+    QList<QSerialPortInfo> availablePorts  = QSerialPortInfo::availablePorts();
+    // This is the same type and we're doing a copy. This saves me from
+    // changing variables names in the iterator if I change my mind with the
+    // member variable
+    _serialPorts = availablePorts;
 
-    qDebug() << "Looking for serial ports";
+    qDebug() << "Found " << availablePorts.length() << ".";
     _usbDevices.clear();
+    int index = 0;
     std::for_each(availablePorts.cbegin(), availablePorts.cend(),
-             [this](const QSerialPortInfo &p) {
-                 if (p.serialNumber() == Controller::RPLidarSerial) {
-                     _usbDevices[p.serialNumber()] = p.portName() + ":" + p.systemLocation();
-                     _lidarDriver = RPlidarDriver::CreateDriver(DRIVER_TYPE_SERIALPORT);
-                     _ConnectToLidar(p.systemLocation());
-                 }
-                 if (p.serialNumber() == Controller::AMG8833Serial) {
-                     QSerialPort *serialPort = new QSerialPort(p, this);
-                     serialPort->setBaudRate(115200);
-                     serialPort->open(QIODevice::ReadOnly);
-                     //_heatSource = new HeatSource(serialPort, this);
-                 }
-             });
+                  [this](const QSerialPortInfo &p) {
+                      qDebug() << "port serial number: " << p.serialNumber() ;
+                      _usbDevices[p.serialNumber()] = p.portName() + ":" + p.systemLocation();
+                  });
     _context->setContextProperty(USBDevicesPropertyName, QVariant(_usbDevices));
-    _scanTimer = new QTimer(this);
-    connect(_scanTimer, &QTimer::timeout, this, &Self::_ReadDevice);
-    _scanTimer->start(100);
 }
 
 void
