@@ -32,7 +32,7 @@ ApplicationWindow {
                     checkable: true
                     onToggled: {
                         pointsItem.update()
-                        //controller.SetUsbDevice(model.index, toggled)
+                        controller.SetUsbDevice(model.index, toggled)
                     }
                 }
             }

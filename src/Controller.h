@@ -3,6 +3,7 @@
 
 #include <QMap>
 #include <QObject>
+#include <QSerialPortInfo>
 #include <QString>
 #include <QStringListModel>
 
@@ -66,6 +67,7 @@ private:
 private:
     // Holds the QSerialPort
     QVariantMap _usbDevices;
+    QList<QSerialPortInfo> _serialPorts;
     int _selectedDevice;
 
     QVector<QPointF> _points;
